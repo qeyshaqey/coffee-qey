@@ -62,3 +62,74 @@ export async function keluar() {
   redirect("/admin/login");
 }
 
+/**
+ * Server Action untuk mengganti password admin yang sedang login.
+ * Memeriksa sesi login di server dan memvalidasi panjang password minimal 8 karakter serta kesamaan konfirmasi.
+ */
+export async function gantiPassword(arg1, arg2) {
+  const formData = arg2 instanceof FormData ? arg2 : arg1;
+  const passwordBaru = formData?.get ? formData.get("password_baru") : "";
+  const konfirmasiPassword = formData?.get ? formData.get("konfirmasi_password") : "";
+
+  if (!passwordBaru || !konfirmasiPassword) {
+    redirect(
+      "/admin/password?error=" +
+        encodeURIComponent("Password baru dan konfirmasi password wajib diisi.")
+    );
+  }
+
+  if (passwordBaru.length < 8) {
+    redirect(
+      "/admin/password?error=" +
+        encodeURIComponent("Password baru minimal 8 karakter.")
+    );
+  }
+
+  if (passwordBaru !== konfirmasiPassword) {
+    redirect(
+      "/admin/password?error=" +
+        encodeURIComponent("Konfirmasi password harus sama dengan password baru.")
+    );
+  }
+
+  let pesanError = null;
+  let harusKeLogin = false;
+
+  try {
+    const supabase = await buatKoneksiAdmin();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      harusKeLogin = true;
+    } else {
+      const { error } = await supabase.auth.updateUser({
+        password: String(passwordBaru),
+      });
+
+      if (error) {
+        pesanError = error.message || "Gagal mengganti password.";
+      }
+    }
+  } catch (err) {
+    pesanError = err.message || "Terjadi kesalahan saat mengganti password.";
+  }
+
+  if (harusKeLogin) {
+    redirect(
+      "/admin/login?error=" +
+        encodeURIComponent("Sesi telah berakhir. Silakan masuk kembali.")
+    );
+  }
+
+  if (pesanError) {
+    redirect("/admin/password?error=" + encodeURIComponent(pesanError));
+  }
+
+  redirect(
+    "/admin/password?sukses=" + encodeURIComponent("Password berhasil diganti.")
+  );
+}
+
