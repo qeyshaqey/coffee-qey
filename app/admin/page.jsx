@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import NavAdmin from "@/components/NavAdmin";
 import TabelProduk from "@/components/TabelProduk";
 import Tombol from "@/components/Tombol";
-import { produkContoh } from "@/lib/data-contoh";
 import { buatKoneksiAdmin } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
 
 export default async function HalamanAdmin() {
   const supabase = await buatKoneksiAdmin();
@@ -15,8 +16,10 @@ export default async function HalamanAdmin() {
     redirect("/admin/login");
   }
 
-  // US-07 (bonus): daftar produk masih memakai data contoh, belum dari database.
-  const daftarProduk = produkContoh;
+  const { data: daftarProduk, error } = await supabase
+    .from("produk")
+    .select("*")
+    .order("created_at", { ascending: true });
 
   return (
     <div className="flex flex-col gap-6 py-8">
@@ -26,7 +29,17 @@ export default async function HalamanAdmin() {
         {/* US-08 (bonus): tambah produk */}
         <Tombol href="/admin/produk/baru">Tambah produk</Tombol>
       </div>
-      <TabelProduk daftarProduk={daftarProduk} />
+
+      {error ? (
+        <div className="rounded-xl border border-garis bg-permukaan p-4 text-bahaya">
+          <p className="font-semibold">Gagal memuat produk</p>
+          <p className="mt-1 text-sm text-teks-lembut">{error.message}</p>
+        </div>
+      ) : !daftarProduk || daftarProduk.length === 0 ? (
+        <p className="text-teks-lembut">Belum ada produk.</p>
+      ) : (
+        <TabelProduk daftarProduk={daftarProduk} />
+      )}
     </div>
   );
 }
